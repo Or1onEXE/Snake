@@ -13,7 +13,7 @@ use bevy::{
 	prelude::*, 
 };
 
-#[derive(PartialEq, Default)]
+#[derive(PartialEq, Default, Clone, Copy)]
 enum Direction {
 	#[default] Up,
 	Down,
@@ -35,11 +35,11 @@ struct Cell {
 struct Snake {
 	entity: Option<Entity>,
 	direction: Direction,
-    // i: Vec<usize>,
-    // j: Vec<usize>,
+	// i: Vec<usize>,
+	// j: Vec<usize>,
 	i: usize,
-    j: usize,
-    move_cooldown: Timer,
+	j: usize,
+	move_cooldown: Timer,
 }
 
 #[derive(Default)]
@@ -52,11 +52,11 @@ struct Apple {
 
 #[derive(Default)]
 struct Game {
-    board: Vec<Vec<Cell>>,
-    player: Snake,
+	board: Vec<Vec<Cell>>,
+	snake: Snake,
 	apple: Apple,
-    score: u32,
-    apples_eaten: u32,
+	score: u32,
+	apples_eaten: u32,
 	camera_should_focus: Vec3,
 	camera_is_focus: Vec3,
 }
@@ -109,14 +109,14 @@ fn setup_camera(
 	game.camera_is_focus = game.camera_should_focus;
 
 	commands.spawn_bundle(Camera3dBundle {
-        transform: Transform::from_xyz(
-            -(BOARD_SIZE_I as f32 / 2.0),
-            2.0 * BOARD_SIZE_J as f32 / 3.0,
-            BOARD_SIZE_J as f32 / 2.0 - 0.5,
-        )
-        .looking_at(game.camera_is_focus, Vec3::Y),
-        ..default()
-    });
+		transform: Transform::from_xyz(
+			-(BOARD_SIZE_I as f32 / 2.0),
+			2.0 * BOARD_SIZE_J as f32 / 3.0,
+			BOARD_SIZE_J as f32 / 2.0 - 0.5,
+		)
+		.looking_at(game.camera_is_focus, Vec3::Y),
+		..default()
+	});
 }
 
 fn setup(
@@ -125,10 +125,10 @@ fn setup(
 	mut game: ResMut<Game>
 ) {
 	game.score = 0;
-	game.player.i = 5;
-	game.player.j = 5;
-	game.player.direction = Direction::Down;
-	game.player.move_cooldown = Timer::from_seconds(0.3, false);
+	game.snake.i = 5;
+	game.snake.j = 5;
+	game.snake.direction = Direction::Down;
+	game.snake.move_cooldown = Timer::from_seconds(0.3, false);
 
 	commands.spawn_bundle(PointLightBundle {
 		transform: Transform::from_xyz(4.0, 10.0, 4.0),
@@ -143,29 +143,29 @@ fn setup(
 
 	let cell_scene = asset_server.load("models/tile.glb#Scene0");
 	game.board = (0..BOARD_SIZE_J)
-        .map(|j| {
-            (0..BOARD_SIZE_I)
-                .map(|i| {
-                    let height = 0_f32;
-                    commands.spawn_bundle(SceneBundle {
-                        transform: Transform::from_xyz(i as f32, height, j as f32),
-                        scene: cell_scene.clone(),
-                        ..default()
-                    });
-                    Cell { height }
-                })
-                .collect()
-        })
-        .collect();
+		.map(|j| {
+			(0..BOARD_SIZE_I)
+				.map(|i| {
+					let height = rand::thread_rng().gen_range(-0.05..0.05);
+					commands.spawn_bundle(SceneBundle {
+						transform: Transform::from_xyz(i as f32, height - 0.2, j as f32),
+						scene: cell_scene.clone(),
+						..default()
+					});
+					Cell { height }
+				})
+				.collect()
+		})
+		.collect();
 
-	game.player.entity = Some(
+	game.snake.entity = Some(
 		commands
 		.spawn_bundle(SceneBundle {
 			transform: Transform {
 				translation: Vec3::new(
-					game.player.i as f32,
+					game.snake.i as f32,
 					0_f32,
-					game.player.j as f32,
+					game.snake.j as f32,
 				),
 				..default()
 			},
@@ -212,7 +212,7 @@ fn focus_camera(
 ) {
 	const SPEED: f32 = 2.0;
 
-	if let(Some(player_entity), Some(apple_entity)) = (game.player.entity, game.apple.entity) {
+	if let(Some(player_entity), Some(apple_entity)) = (game.snake.entity, game.apple.entity) {
 		let transform_query = transform.p1();
 		if let (Ok(player_transform), Ok(apple_transform)) = (
 			transform_query.get(player_entity),
@@ -222,7 +222,7 @@ fn focus_camera(
 				.translation
 				.lerp(apple_transform.translation, 0.5);
 		}
-	} else if let Some(player_entity) = game.player.entity {
+	} else if let Some(player_entity) = game.snake.entity {
 		if let Ok(player_transform) = transform.p1().get(player_entity) {
 			game.camera_should_focus = player_transform.translation;
 		}
@@ -248,49 +248,59 @@ fn move_snake(
 	mut transform: Query<&mut Transform>,
 	time: Res<Time>,
 ) {
-	if game.player.move_cooldown.tick(time.delta()).finished() {
-        let mut moved: bool = false;
-        let mut rotation: f32 = 0.0;
-
-        if keyboard_input.pressed(KeyCode::Up) {
-            if game.player.i < BOARD_SIZE_I - 1 {
-                game.player.i += 1;
-            }
-            moved = true;
-        }
-        if keyboard_input.pressed(KeyCode::Down) {
-            if game.player.i > 0 {
-                game.player.i -= 1;
-            }
-            moved = true;
-        }
-        if keyboard_input.pressed(KeyCode::Right) {
-            if game.player.j < BOARD_SIZE_J - 1 {
-                game.player.j += 1;
-            }
-            moved = true;
-        }
-        if keyboard_input.pressed(KeyCode::Left) {
-            if game.player.j > 0 {
-                game.player.j -= 1;
-            }
-            moved = true;
-        }
-
-		if moved {
-			game.player.move_cooldown.reset();
-			*transform.get_mut(game.player.entity.unwrap()).unwrap() = Transform {
-				translation: Vec3::new(
-					game.player.i as f32,
-					0_f32,
-					game.player.j as f32,
-				),
-				..default()
-			};
-		}	
+	fn check(keyboard_input: Input<KeyCode>, key_code: KeyCode) -> bool {
+		if keyboard_input.pressed(key_code) || keyboard_input.just_pressed(key_code) 
+			{ return true }
+		else 
+			{ return false }
+	}
+	
+	if check(keyboard_input.clone(), KeyCode::Up) && game.snake.direction != Direction::Down{
+		game.snake.direction = Direction::Up
+	}
+	else if check(keyboard_input.clone(), KeyCode::Down) && game.snake.direction != Direction::Up {
+		game.snake.direction = Direction::Down
+	}
+	else if check(keyboard_input.clone(), KeyCode::Right) && game.snake.direction != Direction::Left {
+		game.snake.direction = Direction::Right
+	}
+	else if check(keyboard_input.clone(), KeyCode::Left) && game.snake.direction != Direction::Right {
+		game.snake.direction = Direction::Left
+	}
+	
+	if game.snake.move_cooldown.tick(time.delta()).finished() {
+		match game.snake.direction {
+			Direction::Up => {
+				if game.snake.i == BOARD_SIZE_I - 1 { game.snake.i = 0; }
+				else { game.snake.i += 1; }
+			},
+			Direction::Down => {
+				if game.snake.i == 0 { game.snake.i = BOARD_SIZE_I - 1; }
+				else { game.snake.i -= 1; }
+			},
+			Direction::Right => {
+				if game.snake.j == BOARD_SIZE_J - 1 { game.snake.j = 0; }
+				else { game.snake.j += 1; }
+			},
+			Direction::Left => {
+				if game.snake.j == 0 { game.snake.j = BOARD_SIZE_J - 1; }
+				else { game.snake.j -= 1; }
+			},
+		}
+		
+		game.snake.move_cooldown.reset();
+		*transform.get_mut(game.snake.entity.unwrap()).unwrap() = Transform {
+			translation: Vec3::new(
+				game.snake.i as f32,
+				game.board[game.snake.j][game.snake.i].height,
+				game.snake.j as f32,
+			),
+			..default()
+		};
+	
 
 		if let Some(entity) = game.apple.entity {
-			if game.player.i == game.apple.i && game.player.j == game.apple.j {
+			if game.snake.i == game.apple.i && game.snake.j == game.apple.j {
 				game.score += 1;
 				commands.entity(entity).despawn_recursive();
 				game.apple.entity = None;
