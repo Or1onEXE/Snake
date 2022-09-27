@@ -1,0 +1,1 @@
+ - bug with direction(fast change in opposite direction)
