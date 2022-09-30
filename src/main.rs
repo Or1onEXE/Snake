@@ -1,10 +1,10 @@
-#![allow(
-	dead_code,
-	unused_imports,
-	unused_variables,
-	unused_assignments,
-	unused_mut
-)]
+// #![allow(
+// 	dead_code,
+// 	unused_imports,
+// 	unused_variables,
+// 	unused_assignments,
+// 	unused_mut
+// )]
 
 use rand::Rng;
 use bevy::{
@@ -13,19 +13,8 @@ use bevy::{
 	prelude::*, 
 };
 
-#[derive(PartialEq, Default, Clone, Copy)]
-enum Direction {
-	#[default] Up,
-	Down,
-	Left,
-	Right,
-}
-
-#[derive(Clone, Eq, PartialEq, Debug, Hash)]
-enum GameState {
-	Playing,
-	GameOver,
-}
+mod snake;
+mod apples;
 
 struct Cell {
 	height: f32,
@@ -35,10 +24,19 @@ struct Cell {
 struct Snake {
 	entity: Option<Entity>,
 	direction: Direction,
+	matched_direction: Direction,
 	i: Vec<usize>,
 	j: Vec<usize>,
 	size: usize,
 	move_cooldown: Timer,
+}
+
+#[derive(PartialEq, Default, Clone, Copy, Debug)]
+enum Direction {
+	#[default] Up,
+	Down,
+	Left,
+	Right,
 }
 
 #[derive(Default)]
@@ -49,8 +47,14 @@ struct Apple {
 	handle: Handle<Scene>,
 }
 
+#[derive(Clone, Eq, PartialEq, Debug, Hash)]
+pub enum GameState {
+	Playing,
+	GameOver,
+}
+
 #[derive(Default)]
-struct Game {
+pub struct Game {
 	board: Vec<Vec<Cell>>,
 	snake: Snake,
 	apple: Apple,
@@ -82,7 +86,7 @@ fn main() {
 		.add_system_set(SystemSet::on_enter(GameState::Playing).with_system(setup))
 		.add_system_set(
 			SystemSet::on_update(GameState::Playing)
-				.with_system(move_snake)
+				.with_system(snake::move_snake)
 				.with_system(focus_camera)
 				.with_system(scoreboard_system)
 		)
@@ -92,7 +96,7 @@ fn main() {
 		.add_system_set(
 			SystemSet::new()
 				.with_run_criteria(FixedTimestep::step(0.01))
-				.with_system(spawn_apple)
+				.with_system(apples::spawn_apple)
 		)
 		.add_system(bevy::window::close_on_esc)
 		.run();
@@ -126,6 +130,8 @@ fn setup(
 	game.snake.j = vec!(BOARD_SIZE_J / 2);
 	game.snake.direction = Direction::Down;
 	game.snake.move_cooldown = Timer::from_seconds(0.3, false);
+	game.snake.direction = Direction::Right;
+	game.snake.matched_direction = Direction::Right;
 
 	commands.spawn_bundle(PointLightBundle {
 		transform: Transform::from_xyz(4.0, 10.0, 4.0),
@@ -238,129 +244,6 @@ fn focus_camera(
 	for mut transform in transform.p0().iter_mut() {
 		*transform = transform.looking_at(game.camera_is_focus, Vec3::Y);
 	}
-}
-
-fn move_snake(
-	mut commands: Commands,
-	keyboard_input: Res<Input<KeyCode>>,
-	mut game: ResMut<Game>,
-	mut transform: Query<&mut Transform>,
-	time: Res<Time>,
-) {
-	if keyboard_input.just_pressed(KeyCode::Space) { game.snake.size += 1; }
-	
-	fn check(keyboard_input: Input<KeyCode>, key_code: KeyCode) -> bool {
-		if keyboard_input.pressed(key_code) || keyboard_input.just_pressed(key_code) 
-			{ return true }
-		else 
-			{ return false }
-	}
-	
-	if check(keyboard_input.clone(), KeyCode::Up) && game.snake.direction != Direction::Down{
-		game.snake.direction = Direction::Up
-	}
-	else if check(keyboard_input.clone(), KeyCode::Down) && game.snake.direction != Direction::Up {
-		game.snake.direction = Direction::Down
-	}
-	else if check(keyboard_input.clone(), KeyCode::Right) && game.snake.direction != Direction::Left {
-		game.snake.direction = Direction::Right
-	}
-	else if check(keyboard_input.clone(), KeyCode::Left) && game.snake.direction != Direction::Right {
-		game.snake.direction = Direction::Left
-	}
-	
-	if game.snake.move_cooldown.tick(time.delta()).finished() {
-		match game.snake.direction {
-			Direction::Up => {
-				if game.snake.i[0] == BOARD_SIZE_I - 1 { game.snake.i[0] = 0; }
-				else { game.snake.i[0] += 1; }
-			},
-			Direction::Down => {
-				if game.snake.i[0] == 0 { game.snake.i[0] = BOARD_SIZE_I - 1; }
-				else { game.snake.i[0] -= 1; }
-			},
-			Direction::Right => {
-				if game.snake.j[0] == BOARD_SIZE_J - 1 { game.snake.j[0] = 0; }
-				else { game.snake.j[0] += 1; }
-			},
-			Direction::Left => {
-				if game.snake.j[0] == 0 { game.snake.j[0] = BOARD_SIZE_J - 1; }
-				else { game.snake.j[0] -= 1; }
-			},
-		}
-
-		for i in 1..game.snake.size {
-
-		}
-		
-		game.snake.move_cooldown.reset();
-		*transform.get_mut(game.snake.entity.unwrap()).unwrap() = Transform {
-			translation: Vec3::new(
-				game.snake.i[0] as f32,
-				game.board[game.snake.j[0]][game.snake.i[0]].height,
-				game.snake.j[0] as f32,
-			),
-			..default()
-		};
-	
-
-		if let Some(entity) = game.apple.entity {
-			if game.snake.i[0] == game.apple.i && game.snake.j[0] == game.apple.j {
-				game.snake.size += 1;
-				commands.entity(entity).despawn_recursive();
-				game.apple.entity = None;
-			}
-		}
-	}
-}
-
-fn spawn_apple(
-	mut state: ResMut<State<GameState>>,
-	mut game: ResMut<Game>,
-	mut commands: Commands,
-) {
-	if *state.current() != GameState::Playing || game.apple.entity != None {
-		return;
-	}
-
-	loop {
-		game.apple.i = rand::thread_rng().gen_range(0..BOARD_SIZE_I);
-		game.apple.j = rand::thread_rng().gen_range(0..BOARD_SIZE_J);
-		let mut flag: bool = true;
-		for k in 0..game.snake.size {
-			if game.apple.i == game.snake.i[k] && game.apple.j == game.snake.j[k] {
-				flag = false;
-			}
-		}
-		if flag { break }
-	}
-
-	game.apple.entity = Some(
-		commands.spawn_bundle(
-			SceneBundle {
-				transform: Transform::from_xyz(
-					game.apple.i as f32,
-					game.board[game.apple.i][game.apple.j].height + 0.2,
-					game.apple.j as f32,
-				),
-				scene: game.apple.handle.clone(),
-				..default()
-			}
-		)
-		.with_children(|children| {
-			children.spawn_bundle( PointLightBundle {
-				point_light: PointLight {
-					color: Color::rgb(1.0, 1.0, 0.0),
-					intensity: 1000.0,
-					range: 10.0,
-					..default()
-				},
-				transform: Transform::from_xyz(0.0, 2.0, 0.0),
-				..default()
-			});
-		})
-		.id(),
-	);
 }
 
 fn gameover_keyboard(

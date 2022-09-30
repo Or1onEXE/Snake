@@ -1,1 +1,4 @@
- - bug with direction(fast change in opposite direction)
+ - make snake grow
+ - do a cool textures of apple
+ - do a cool textures of snake
+ - do a cool refactor
