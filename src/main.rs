@@ -8,8 +8,7 @@
 
 use rand::Rng;
 use bevy::{
-	ecs::schedule::SystemSet, 
-	time::FixedTimestep,
+	ecs::schedule::SystemSet,
 	prelude::*, 
 };
 
@@ -89,15 +88,11 @@ fn main() {
 				.with_system(snake::move_snake)
 				.with_system(focus_camera)
 				.with_system(scoreboard_system)
+				.with_system(apples::spawn_apple)
 		)
 		.add_system_set(SystemSet::on_exit(GameState::Playing).with_system(teardown))
 		.add_system_set(SystemSet::on_exit(GameState::GameOver).with_system(teardown))
 		.add_system_set(SystemSet::on_update(GameState::GameOver).with_system(gameover_keyboard))
-		.add_system_set(
-			SystemSet::new()
-				.with_run_criteria(FixedTimestep::step(0.01))
-				.with_system(apples::spawn_apple)
-		)
 		.add_system(bevy::window::close_on_esc)
 		.run();
 }
@@ -128,13 +123,16 @@ fn setup(
 	game.snake.size = 1;
 	game.snake.i = vec!(BOARD_SIZE_I / 2);
 	game.snake.j = vec!(BOARD_SIZE_J / 2);
-	game.snake.direction = Direction::Down;
 	game.snake.move_cooldown = Timer::from_seconds(0.3, false);
 	game.snake.direction = Direction::Right;
 	game.snake.matched_direction = Direction::Right;
 
 	commands.spawn_bundle(PointLightBundle {
-		transform: Transform::from_xyz(4.0, 10.0, 4.0),
+		transform: Transform::from_xyz(
+			BOARD_SIZE_I as f32,
+			10.0,
+			BOARD_SIZE_J as f32
+		),
 		point_light: PointLight {
 			intensity: 3000.0,
 			shadows_enabled: true,

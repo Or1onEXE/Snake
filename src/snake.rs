@@ -16,7 +16,10 @@ pub fn move_snake(
 	mut transform: Query<&mut Transform>,
 	time: Res<Time>,
 ) {
-	if keyboard_input.just_pressed(KeyCode::Space) { game.snake.size += 1; }
+	for i in 0..game.snake.i.len() {
+		info!("{} {}", game.snake.i[i], game.snake.j[i])
+	}
+	info!("------------------");
 	
 	fn check(keyboard_input: Input<KeyCode>, key_code: KeyCode) -> bool {
 		if keyboard_input.pressed(key_code) || keyboard_input.just_pressed(key_code) 
@@ -45,6 +48,13 @@ pub fn move_snake(
 			game.snake.direction = game.snake.matched_direction;
 		} else if game.snake.matched_direction == Direction::Left && game.snake.direction != Direction::Right {
 			game.snake.direction = game.snake.matched_direction;
+		}
+		
+		// change direction 
+		let size: usize = game.snake.i.len();
+		for index in 0..size - 1 {
+			game.snake.i[size - index - 1] = game.snake.i[size - index];
+			game.snake.j[size - index - 1] = game.snake.j[size - index];
 		}
 		
 		match game.snake.direction {

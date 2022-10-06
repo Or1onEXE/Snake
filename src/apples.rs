@@ -5,13 +5,11 @@ use bevy::{
 
 use crate::{
 	Game,
-	// GameState,
 	BOARD_SIZE_I,
 	BOARD_SIZE_J,
 };
 
 pub fn spawn_apple(
-	// mut state: ResMut<State<GameState>>,
 	mut game: ResMut<Game>,
 	mut commands: Commands,
 ) {
