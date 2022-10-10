@@ -77,19 +77,21 @@ pub fn move_snake(
 		}
 			
 		game.snake.move_cooldown.reset();
-		*transform.get_mut(game.snake.entity.unwrap()).unwrap() = Transform {
-			translation: Vec3::new(
-				game.snake.i[0] as f32,
-				game.board[game.snake.j[0]][game.snake.i[0]].height,
-				game.snake.j[0] as f32,
-			),
-			..default()
-		};
+		for index in 0..game.snake.size - 1 {
+			*transform.get_mut(game.snake.entity[index].unwrap()).unwrap() = Transform {
+				translation: Vec3::new(
+					game.snake.i[index] as f32,
+					game.board[game.snake.j[index]][game.snake.i[index]].height,
+					game.snake.j[index] as f32,
+				),
+				..default()
+			};
+		}
 
 		game.snake.skip_move = false;
 		if let Some(entity) = game.apple.entity {
 			if game.snake.i[0] == game.apple.i && game.snake.j[0] == game.apple.j {
-				game.snake.size += 1;
+				game.snake.new_size += 1;
 				commands.entity(entity).despawn_recursive();
 				game.apple.entity = None;
 
@@ -113,7 +115,7 @@ pub fn move_snake(
 			}
 		}
 		
-		let mut vec = vec![vec!["_"; 10]; 10];
+		let mut vec: Vec<Vec<&str>> = vec![vec!["_"; 10]; 10];
 
 		for index in 0..game.snake.i.len() {
 			vec[game.snake.i[index]][game.snake.j[index]] = "X";
@@ -123,4 +125,38 @@ pub fn move_snake(
 			println!("{:?}", vec[10 - i - 1]);
 		}
 	}
+}
+
+pub fn spawn_snake_tile(
+	mut game: ResMut<Game>,
+	mut commands: Commands,
+) {
+	if game.snake.new_size == game.snake.size {
+		return;
+	}
+	
+	let last: usize = game.snake.size - 1;
+	
+	let snake_x: f32 = game.snake.i[last] as f32;
+	let snake_y: f32 = game.board[game.snake.i[last]][game.snake.j[last]].height + 0.2;
+	let snake_z: f32 = game.snake.j[last] as f32;
+	let snake_scene: Handle<Scene> = game.snake.handle.clone();
+	game.snake.entity.push(
+		Some(
+			commands.spawn_bundle(
+				SceneBundle {
+					transform: Transform::from_xyz(
+						snake_x,						
+						snake_y,						
+						snake_z,						
+					),
+					scene: snake_scene,
+					..default()
+				}
+			)
+			.id(),
+		)
+	);
+
+	game.snake.size += 1;
 }

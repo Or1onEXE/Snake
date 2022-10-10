@@ -1,5 +1,5 @@
- - make snake grow
  - do a cool textures of apple
  - do a cool textures of snake
  - do a cool refactor
  - fix indents on death screen
+ - 

@@ -21,14 +21,16 @@ struct Cell {
 
 #[derive(Default)]
 struct Snake {
-	entity: Option<Entity>,
+	entity: Vec<Option<Entity>>,
 	direction: Direction,
 	matched_direction: Direction,
 	i: Vec<usize>,
 	j: Vec<usize>,
 	size: usize,
+	new_size: usize,
 	move_cooldown: Timer,
 	skip_move: bool,
+	handle: Handle<Scene>,
 }
 
 #[derive(PartialEq, Default, Clone, Copy, Debug)]
@@ -87,6 +89,7 @@ fn main() {
 		.add_system_set(
 			SystemSet::on_update(GameState::Playing)
 				.with_system(snake::move_snake)
+				.with_system(snake::spawn_snake_tile)
 				.with_system(focus_camera)
 				.with_system(scoreboard_system)
 				.with_system(apples::spawn_apple)
@@ -123,6 +126,7 @@ fn setup(
 	mut game: ResMut<Game>
 ) {
 	game.snake.size = 2;
+	game.snake.new_size = 2;
 	game.snake.i = vec!(BOARD_SIZE_I / 2, BOARD_SIZE_I / 2);
 	game.snake.j = vec!(BOARD_SIZE_J / 2 + 1, BOARD_SIZE_J / 2);
 	game.snake.move_cooldown = Timer::from_seconds(0.3, false);
@@ -162,23 +166,28 @@ fn setup(
 		})
 		.collect();
 
-	game.snake.entity = Some(
-		commands
-		.spawn_bundle(SceneBundle {
-			transform: Transform {
-				translation: Vec3::new(
-					game.snake.i[0] as f32,
-					0_f32,
-					game.snake.j[0] as f32,
-				),
+	let snake_x: f32 = game.snake.i[0] as f32;
+	let snake_z: f32 = game.snake.j[0] as f32;
+	game.snake.entity.push(
+		Some(
+			commands
+			.spawn_bundle(SceneBundle {
+				transform: Transform {
+					translation: Vec3::new(
+						snake_x,
+						0_f32,
+						snake_z,
+					),
+					..default()
+				},
+				scene: asset_server.load("models/alien.glb#Scene0"),
 				..default()
-			},
-			scene: asset_server.load("models/alien.glb#Scene0"),
-			..default()
-		})
-		.id()
+			})
+			.id()
+		)
 	);
 
+	game.snake.handle = asset_server.load("models/alien.glb#Scene0");
 	game.apple.handle = asset_server.load("models/red_cube.glb#Scene0");
 
 	commands.spawn_bundle(
@@ -218,7 +227,7 @@ fn focus_camera(
 ) {
 	const SPEED: f32 = 2.0;
 
-	if let(Some(player_entity), Some(apple_entity)) = (game.snake.entity, game.apple.entity) {
+	if let(Some(player_entity), Some(apple_entity)) = (game.snake.entity[0], game.apple.entity) {
 		let transform_query = transform.p1();
 		if let (Ok(player_transform), Ok(apple_transform)) = (
 			transform_query.get(player_entity),
@@ -228,7 +237,7 @@ fn focus_camera(
 				.translation
 				.lerp(apple_transform.translation, 0.5);
 		}
-	} else if let Some(player_entity) = game.snake.entity {
+	} else if let Some(player_entity) = game.snake.entity[0] {
 		if let Ok(player_transform) = transform.p1().get(player_entity) {
 			game.camera_should_focus = player_transform.translation;
 		}
