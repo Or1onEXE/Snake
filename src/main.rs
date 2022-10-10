@@ -28,6 +28,7 @@ struct Snake {
 	j: Vec<usize>,
 	size: usize,
 	move_cooldown: Timer,
+	skip_move: bool,
 }
 
 #[derive(PartialEq, Default, Clone, Copy, Debug)]
@@ -90,6 +91,7 @@ fn main() {
 				.with_system(scoreboard_system)
 				.with_system(apples::spawn_apple)
 		)
+		.add_system_set(SystemSet::on_enter(GameState::GameOver).with_system(lose_score))
 		.add_system_set(SystemSet::on_exit(GameState::Playing).with_system(teardown))
 		.add_system_set(SystemSet::on_exit(GameState::GameOver).with_system(teardown))
 		.add_system_set(SystemSet::on_update(GameState::GameOver).with_system(gameover_keyboard))
@@ -120,12 +122,13 @@ fn setup(
 	asset_server: Res<AssetServer>,
 	mut game: ResMut<Game>
 ) {
-	game.snake.size = 1;
-	game.snake.i = vec!(BOARD_SIZE_I / 2);
-	game.snake.j = vec!(BOARD_SIZE_J / 2);
+	game.snake.size = 2;
+	game.snake.i = vec!(BOARD_SIZE_I / 2, BOARD_SIZE_I / 2);
+	game.snake.j = vec!(BOARD_SIZE_J / 2 + 1, BOARD_SIZE_J / 2);
 	game.snake.move_cooldown = Timer::from_seconds(0.3, false);
 	game.snake.direction = Direction::Right;
 	game.snake.matched_direction = Direction::Right;
+	game.snake.skip_move = false;
 
 	commands.spawn_bundle(PointLightBundle {
 		transform: Transform::from_xyz(
@@ -259,4 +262,30 @@ fn scoreboard_system(
 ) {
 	let mut text = query.single_mut();
 	text.sections[0].value = format!("Score: {}", game.snake.size * 10 - 10);
+}
+
+fn lose_score(
+	game: Res<Game>,
+	asset_server: Res<AssetServer>,
+	mut commands: Commands,
+) {
+	commands.spawn_bundle(NodeBundle {
+		style: Style {
+			margin: UiRect::all(Val::Auto),
+			justify_content: JustifyContent::Center,
+			align_items: AlignItems::Center,
+			..default()
+		},
+		color: Color::NONE.into(),
+		..default()
+	}).with_children(|parent| {
+		parent.spawn_bundle(TextBundle::from_section(
+			format!("Apples eaten: {}\nPress SPACE to restart", game.snake.size),
+			TextStyle {
+				font: asset_server.load("fonts/pixeled.ttf"),
+				font_size: 80.0,
+				color: Color::rgb(0.5, 0.5, 1.0),
+			},
+		));
+	});
 }

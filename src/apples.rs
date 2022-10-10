@@ -4,16 +4,18 @@ use bevy::{
 };
 
 use crate::{
+	GameState,
 	Game,
 	BOARD_SIZE_I,
 	BOARD_SIZE_J,
 };
 
 pub fn spawn_apple(
+	state: ResMut<State<GameState>>,
 	mut game: ResMut<Game>,
 	mut commands: Commands,
 ) {
-	if  game.apple.entity != None {
+	if *state.current() == GameState::Playing && game.apple.entity != None {
 		return;
 	}
 
