@@ -77,7 +77,8 @@ pub fn move_snake(
 		}
 			
 		game.snake.move_cooldown.reset();
-		for index in 0..game.snake.size - 1 {
+		for index in 0..game.snake.size {
+            info!("{:?}", game.snake.entity);
 			*transform.get_mut(game.snake.entity[index].unwrap()).unwrap() = Transform {
 				translation: Vec3::new(
 					game.snake.i[index] as f32,
@@ -112,18 +113,20 @@ pub fn move_snake(
 		for index in 1..game.snake.size {
 			if game.snake.i[0] == game.snake.i[index] && game.snake.j[0] == game.snake.j[index] {
 				let _ = state.overwrite_set(GameState::GameOver);
+
+                game.snake.entity = vec!();
 			}
 		}
 		
 		let mut vec: Vec<Vec<&str>> = vec![vec!["_"; 10]; 10];
-
-		for index in 0..game.snake.i.len() {
-			vec[game.snake.i[index]][game.snake.j[index]] = "X";
-		}
-		
-		for i in 0..10 {
-			println!("{:?}", vec[10 - i - 1]);
-		}
+        
+        for index in 0..game.snake.i.len() {
+	 	    vec[game.snake.i[index]][game.snake.j[index]] = "X";
+	 	}
+	 	
+	 	for i in 0..10 {
+	 		println!("{:?}", vec[10 - i - 1]);
+	 	}
 	}
 }
 

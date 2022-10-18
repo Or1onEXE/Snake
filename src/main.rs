@@ -37,6 +37,7 @@ struct Snake {
 enum Direction {
 	#[default] Up,
 	Down,
+# return string
 	Left,
 	Right,
 }
@@ -164,28 +165,31 @@ fn setup(
 				})
 				.collect()
 		})
-		.collect();
-
-	let snake_x: f32 = game.snake.i[0] as f32;
-	let snake_z: f32 = game.snake.j[0] as f32;
-	game.snake.entity.push(
-		Some(
-			commands
-			.spawn_bundle(SceneBundle {
-				transform: Transform {
-					translation: Vec3::new(
-						snake_x,
-						0_f32,
-						snake_z,
-					),
-					..default()
-				},
-				scene: asset_server.load("models/alien.glb#Scene0"),
-				..default()
-			})
-			.id()
-		)
-	);
+                .collect();
+    
+    for index in 0..2 {
+        let snake_x: f32 = game.snake.i[index] as f32;
+    	let snake_z: f32 = game.snake.j[index] as f32;
+    
+    	game.snake.entity.push(
+    		Some(
+    			commands
+    			.spawn_bundle(SceneBundle {
+    				transform: Transform {
+    					translation: Vec3::new(
+    						snake_x,
+    						0_f32,
+    						snake_z,
+    					),
+    					..default()
+    				},
+    				scene: asset_server.load("models/alien.glb#Scene0"),
+    				..default()
+    			})
+    			.id()
+    		)
+    	);
+    }
 
 	game.snake.handle = asset_server.load("models/alien.glb#Scene0");
 	game.apple.handle = asset_server.load("models/red_cube.glb#Scene0");
@@ -257,11 +261,35 @@ fn focus_camera(
 }
 
 fn gameover_keyboard(
+    mut game: ResMut<Game>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
 	mut state: ResMut<State<GameState>>,
 	keyboard_input: Res<Input<KeyCode>>,
 ) {
 	if keyboard_input.just_pressed(KeyCode::Space) {
 		state.set(GameState::Playing).unwrap();
+
+        let snake_x: f32 = game.snake.i[0] as f32;
+	    let snake_z: f32 = game.snake.j[0] as f32;
+	    game.snake.entity.push(
+	    	Some(
+	    		commands
+	    		.spawn_bundle(SceneBundle {
+	    			transform: Transform {
+	    				translation: Vec3::new(
+	    					snake_x,
+	    					0_f32,
+	    					snake_z,
+	    				),
+	    				..default()
+	    			},
+	    			scene: asset_server.load("models/alien.glb#Scene0"),
+	    			..default()
+	    		})
+	    		.id()
+	    	)
+	    );
 	}
 }
 
